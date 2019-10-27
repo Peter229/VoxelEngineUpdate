@@ -14,12 +14,15 @@
 
 class chunk {
 public:
+	chunk();
 	chunk(int x, int y, int z, unsigned int seed);
 	void render(Shader *shader);
 	void cleanUp();
 	void deleteBlock(glm::vec3 &orig, glm::vec3 &dir);
 	void addBlock(glm::vec3 &orig, glm::vec3 &dir);
 	glm::vec3 getPosition();
+	glm::ivec3 getBlockPos(glm::vec3 &orig, glm::vec3 &dir);
+	void reGen(int x, int y, int z);
 private:
 	struct Triangle {
 		glm::vec3 v1;

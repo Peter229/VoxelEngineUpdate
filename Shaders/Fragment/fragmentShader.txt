@@ -16,6 +16,9 @@ void main() {
 	vec3 ambient = vec3(0.9, 0.9, 0.9);
 	//float diff = max(dot(Normal, lightDir), 0.0);
 	float darken = 0.0;
+	if (texel.r == 1 && texel.g == 1 && texel.b == 1){
+		texel.a = 0.4;
+	}
 	if (Normal == vec3(0.0, 1.0, 0.0)){
 		darken = 0.0;
 	}else if (Normal == vec3(1.0, 0.0, 0.0)){
@@ -33,5 +36,5 @@ void main() {
 	//norm = min(1 - (abs(Normal.y * FragPos.y) * 0.003), 0.00001);
 	
 	//vec3 diffuse = diff * lightCol;
-	FragColor = vec4(vec3(texel.r, texel.g, texel.b) * (ambient - darken), 1);
+	FragColor = vec4(vec3(texel.r, texel.g, texel.b) * (ambient - darken), texel.a);
 }

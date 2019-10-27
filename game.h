@@ -6,11 +6,13 @@
 #include "camera.h"
 #include "hud.h"
 #include "chunk.h"
+#include "player.h"
+#include "model.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-#include <map>
+#include <unordered_map>
 #include <chrono>
 #include <thread>
 #include <iostream>
@@ -56,7 +58,7 @@ private:
 	Shader* terrainShader;
 	Shader* hudShader;
 	frustum frust;
-	std::vector<chunk> chunks;
+	//std::vector<chunk> chunks;
 	bool firstMouse;
 	double lastX, lastY;
 	int windowWidth, windowHeight;
@@ -71,5 +73,19 @@ private:
 	double lastTimeA;
 	double lastTimeB;
 	int nbFrames;
+	bool canGen;
+	bool switchGen;
+	bool dynGen;
+	int seed;
 
+	int lastChunkX, lastChunkZ, cu;
+	int chunkSize;
+	int maxChunks;
+	std::unordered_map<int, chunk*> chunks;
+	std::unordered_map<int, chunk*>::iterator cIt;
+
+	bool updateFPS, firstFPS;
+
+	Player cPlayer;
+	Model cModel;
 };

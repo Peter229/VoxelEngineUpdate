@@ -1,5 +1,13 @@
 #include "chunk.h"
 
+chunk::chunk() {
+	this->px = 0;
+	this->py = 0;
+	this->pz = 0;
+	this->seed = 0;
+	model = glm::translate(model, glm::vec3(0, 0, 0));
+}
+
 chunk::chunk(int x, int y, int z, unsigned int seed) {
 	this->px = x;
 	this->py = y;
@@ -12,7 +20,6 @@ chunk::chunk(int x, int y, int z, unsigned int seed) {
 void chunk::render(Shader *shader) {
 	glBindTexture(GL_TEXTURE_2D, Resource_Manager::getTexture("tex"));
 	glBindVertexArray(VAO);
-	shader->setInt("type", 1);
 	shader->setMat4("model", model);
 	glDrawArrays(GL_TRIANGLES, 0, tris.size() * 3);
 	//std::cout << "BOI\n";
@@ -20,6 +27,16 @@ void chunk::render(Shader *shader) {
 
 glm::vec3 chunk::getPosition() {
 	return glm::vec3(px, py, pz);
+}
+
+void chunk::reGen(int x, int y, int z) {
+	this->px = x;
+	this->py = y;
+	this->pz = z;
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(px, py, pz));
+	cleanUp();
+	genChunk();
 }
 
 void chunk::deleteBlock(glm::vec3 &orig, glm::vec3 &dir) {
@@ -60,22 +77,30 @@ void chunk::deleteBlock(glm::vec3 &orig, glm::vec3 &dir) {
 void chunk::addBlock(glm::vec3 &orig, glm::vec3 &dir) {
 
 	glm::ivec3 tempPos(10000000.0f);
+	glm::ivec3 finalPos(0.0f);
 
 	float dist = 0;
 	float dist2 = 0;
+	float finalDist = 0; //Distance to closest block
+	float finalPosDist = 0; //Distance to air block
+
+	std::vector<glm::ivec3> airBlocks;
 
 	for (int x = 0; x < chunkSize; x++) {
 		for (int y = 0; y < chunkSize; y++) {
 			for (int z = 0; z < chunkSize; z++) {
-				if (glm::dot(orig - glm::vec3(px + x + 0.5, py + y + 0.5, pz + z + 0.5), dir) < 0.0f) {
-					if (intersect(orig, dir, glm::vec3(x + px, y + py, z + pz), glm::vec3(x + px + 1, y + py + 1, z + pz + 1))) {
+				if (glm::dot(orig - glm::vec3(px + x + 0.5, py + y + 0.5, pz + z + 0.5), dir) < 0.0f) { //If block is infront
+					if (intersect(orig, dir, glm::vec3(x + px, y + py, z + pz), glm::vec3(x + px + 1, y + py + 1, z + pz + 1))) { //If the ray intersects the block
 						if (cubes[x + chunkSize * (y + chunkSize * z)] != 0) {
-							//std::cout << glm::dot(glm::vec3(x + 0.5, y + 0.5, z + 0.5) - orig, dir) << "\n";
-							dist = pow(orig.x - (px + x + 0.5), 2) + pow(orig.y - (py + y + 0.5), 2) + pow(orig.z - (pz + z + 0.5), 2);
-							dist2 = pow(orig.x - (px + tempPos.x + 0.5), 2) + pow(orig.y - (py + tempPos.y + 0.5), 2) + pow(orig.z - (pz + tempPos.z + 0.5), 2);
+							dist = pow(orig.x - (px + x + 0.5), 2) + pow(orig.y - (py + y + 0.5), 2) + pow(orig.z - (pz + z + 0.5), 2); //Current Block distance
+							dist2 = pow(orig.x - (px + tempPos.x + 0.5), 2) + pow(orig.y - (py + tempPos.y + 0.5), 2) + pow(orig.z - (pz + tempPos.z + 0.5), 2); //Current shortest block distance
 							if (dist < dist2) {
+								finalDist = dist;
 								tempPos = glm::ivec3(x, y, z);
 							}
+						}
+						else {
+							airBlocks.push_back(glm::ivec3(x, y, z));
 						}
 					}
 				}
@@ -83,88 +108,78 @@ void chunk::addBlock(glm::vec3 &orig, glm::vec3 &dir) {
 		}
 	}
 
-	float t = 10000000.0f;
-	float tempt = 1000000000.0f;
-	int dirc = 0; // 0 Up; 1 Down; 2 Right; 3 Left; 4 Front; 5 Back;
+	for (int i = 0; i < airBlocks.size(); i++) {
+		dist = pow(orig.x - (px + airBlocks[i].x + 0.5), 2) + pow(orig.y - (py + airBlocks[i].y + 0.5), 2) + pow(orig.z - (pz + airBlocks[i].z + 0.5), 2);
+		if (dist < finalDist) {
+			if (dist > finalPosDist) {
+				finalPosDist = dist;
+				finalPos = airBlocks[i];
+			}
+		}
+	}
 
-	float closeDistance = 0.00001f;
+	airBlocks.clear();
 
-	if (tempPos.x < chunkSize) {
-		if (intersectPlane(glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(0.5f, 1.0f, 0.5f) + getPosition(), orig, dir, t)) {
-			if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-				tempt = t;
-			}
-		}
-		if (intersectPlane(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(0.5f, 0.0f, 0.5f) + getPosition(), orig, dir, t)) {
-			if (tempt > t) {
-				if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-					dirc = 1;
-					tempt = t;
-				}
-			}
-		}
-		if (intersectPlane(glm::vec3(-1.0f, 0.0f, 0.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(1.0f, 0.5f, 0.5f) + getPosition(), orig, dir, t)) {
-			if (tempt > t) {
-				if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-					dirc = 2;
-					tempt = t;
-				}
-			}
-		}
-		if (intersectPlane(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(0.0f, 0.5f, 0.5f) + getPosition(), orig, dir, t)) {
-			if (tempt > t) {
-				if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-					dirc = 3;
-					tempt = t;
-				}
-			}
-		}
-		if (intersectPlane(glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(0.5f, 0.5f, 1.0f) + getPosition(), orig, dir, t)) {
-			if (tempt > t) {
-				if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-					dirc = 4;
-					tempt = t;
-				}
-			}
-		}
-		if (intersectPlane(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(tempPos.x, tempPos.y, tempPos.z) + glm::vec3(0.5f, 0.5f, 0.0f) + getPosition(), orig, dir, t)) {
-			if (tempt > t) {
-				if (pointInCube(glm::vec3(tempPos) + getPosition(), glm::vec3(tempPos) + getPosition() + glm::vec3(1.0f), orig + (dir * (t + closeDistance)))) {
-					dirc = 5;
-					tempt = t;
-				}
-			}
-		}
-		if (dirc == 0){
-			if (tempPos.y + 1 < chunkSize) {
-				cubes[tempPos.x + chunkSize * ((tempPos.y + 1) + chunkSize * tempPos.z)] = 7;
-			}
-		}else if (dirc == 1) {
-			if (tempPos.y - 1 > -1) {
-				cubes[tempPos.x + chunkSize * ((tempPos.y - 1) + chunkSize * tempPos.z)] = 7;
-			}
-		}else if (dirc == 2) {
-			if (tempPos.x + 1 < chunkSize) {
-				cubes[(tempPos.x + 1) + chunkSize * (tempPos.y + chunkSize * tempPos.z)] = 7;
-			}
-		}else if (dirc == 3) {
-			if (tempPos.x - 1 > -1) {
-				cubes[(tempPos.x - 1) + chunkSize * (tempPos.y + chunkSize * tempPos.z)] = 7;
-			}
-		}else if (dirc == 4) {
-			if (tempPos.z + 1 < chunkSize) {
-				cubes[tempPos.x + chunkSize * (tempPos.y + chunkSize * (tempPos.z + 1))] = 7;
-			}
-		}
-		else {
-			if (tempPos.z - 1 > -1) {
-				cubes[tempPos.x + chunkSize * (tempPos.y + chunkSize * (tempPos.z - 1))] = 7;
-			}
-		}
+	if (finalPos.x < chunkSize) {
+		cubes[finalPos.x + chunkSize * (finalPos.y + chunkSize * (finalPos.z))] = 7;
 		tris.clear();
 		glDeleteVertexArrays(1, &VAO);
 		glDeleteBuffers(1, &VBO);
 		genVAO();
+	}
+}
+
+glm::ivec3 chunk::getBlockPos(glm::vec3 &orig, glm::vec3 &dir) {
+
+	glm::ivec3 tempPos(10000000.0f);
+	glm::ivec3 finalPos(0.0f);
+
+	float dist = 0;
+	float dist2 = 0;
+	float finalDist = 0; //Distance to closest block
+	float finalPosDist = 0; //Distance to air block
+
+	std::vector<glm::ivec3> airBlocks;
+
+	for (int x = 0; x < chunkSize; x++) {
+		for (int y = 0; y < chunkSize; y++) {
+			for (int z = 0; z < chunkSize; z++) {
+				if (glm::dot(orig - glm::vec3(px + x + 0.5, py + y + 0.5, pz + z + 0.5), dir) < 0.0f) { //If block is infront
+					if (intersect(orig, dir, glm::vec3(x + px, y + py, z + pz), glm::vec3(x + px + 1, y + py + 1, z + pz + 1))) { //If the ray intersects the block
+						if (cubes[x + chunkSize * (y + chunkSize * z)] != 0) {
+							dist = pow(orig.x - (px + x + 0.5), 2) + pow(orig.y - (py + y + 0.5), 2) + pow(orig.z - (pz + z + 0.5), 2); //Current Block distance
+							dist2 = pow(orig.x - (px + tempPos.x + 0.5), 2) + pow(orig.y - (py + tempPos.y + 0.5), 2) + pow(orig.z - (pz + tempPos.z + 0.5), 2); //Current shortest block distance
+							if (dist < dist2) {
+								finalDist = dist;
+								tempPos = glm::ivec3(x, y, z);
+							}
+						}
+						else {
+							airBlocks.push_back(glm::ivec3(x, y, z));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < airBlocks.size(); i++) {
+		dist = pow(orig.x - (px + airBlocks[i].x + 0.5), 2) + pow(orig.y - (py + airBlocks[i].y + 0.5), 2) + pow(orig.z - (pz + airBlocks[i].z + 0.5), 2);
+		if (dist < finalDist) {
+			if (dist > finalPosDist) {
+				finalPosDist = dist;
+				finalPos = airBlocks[i];
+			}
+		}
+	}
+
+	airBlocks.clear();
+
+	if (finalPos.x < chunkSize) {
+		return finalPos + glm::ivec3(px, py, pz);
+	}
+	else {
+		return glm::ivec3(666, 666, 666);
 	}
 }
 
@@ -233,23 +248,29 @@ void chunk::genChunk() {
 	//unsigned int seed = 213;
 	PerlinNoise sn(seed);
 
-	seed = seed + 53 * 213 / 3;
-	PerlinNoise biome(seed);
+	PerlinNoise biome(seed + 53 * 213 / 3);
 
-	seed = seed + 7 * 23 / 5;
-	PerlinNoise tree(seed);
+	PerlinNoise tree(seed + 7 * 23 / 5);
 	
 	int scale = 3;
 
 	std::vector<glm::ivec2> treePos;
 
+	int lift = 0;
+
 	for (int x = 0; x < chunkSize; x++) {
 		for (int y = chunkSize-1; y > -1; y--) {
 			for (int z = 0; z < chunkSize; z++) {
 
-				float b = biome.noise(0.011 * (x + px), 0.011 * (z + pz), 0.011 * (y + py));
+				float b = biome.noise(0.011 * (x + px), 0.011 * (z + pz), 0.011 /** (y + py)*/);
 				if (b > 0.7) { //Sand Mountains
-					b = 4;
+					b = biome.noise(0.011 * (x + px), 0.011 * (z + pz), 0.011 * (y + py));
+					if (b > 0.75) {
+						b = 4;
+					}
+					else {
+						b = 1;
+					}
 				}
 				else if (b > 0.5) { //Light forest
 					b = 1; 
@@ -272,16 +293,16 @@ void chunk::genChunk() {
 				if (b == 1) {
 					h = 100 * ((0.11 * sn.noise(0.011 * (x + px), 0.011 * (z + pz), 0.25)));
 					h = pow(h, 1.3);
-					h = 30 + h;
+					h = lift + h;
 				}else if (b == 4) {
 					h = 100 * ((0.11 * sn.noise(0.11 * (x + px), 0.11 * (z + pz), 0.25 * (y + py))));
 					h = pow(h, 1.0);
-					h = 30 + h;
+					h = lift + h;
 				}
 				else {
 					h = 50 * ((0.4 * sn.noise(0.25 * (x + px), 0.25 * (z + pz), 0.25)));
 					h = pow(h, 1.0);
-					h = 30 + h;
+					h = lift + h;
 				}
 
 				int worldHeight = y + py;
@@ -304,7 +325,8 @@ void chunk::genChunk() {
 					}
 				}
 				else {
-					if (31 < h) {
+					//std::cout << h << "\n";
+					if (4 < h) {
 
 						cubes[x + chunkSize * (y + chunkSize * z)] = (int)b;
 					}
@@ -318,7 +340,7 @@ void chunk::genChunk() {
 	for (int i = 0; i < treePos.size(); i++) {
 		int h = 100 * ((0.11 * sn.noise(0.011 * (treePos[i].x + px), 0.011 * (treePos[i].y + pz), 0.25)));
 		h = pow(h, 1.3);
-		h = 31 + h;
+		h = lift + h + 1;
 		for (int treeHeight = 0; treeHeight < 7; treeHeight++) {
 			if ((treeHeight + h) - py < chunkSize) {
 				cubes[treePos[i].x + chunkSize * (((treeHeight + h) - py) + chunkSize * treePos[i].y)] = 8;
