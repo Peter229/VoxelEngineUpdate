@@ -425,6 +425,7 @@ void chunk::genVAO() {
 						tris.push_back({ glm::vec3((float)x, (float)y + 1.0f, (float)z), glm::vec2((0.0f / 3.0f) + ((float)type * (1.0f / 3.0f)), (0.0f / 3.0f) + ((1.0f / 3.0f) * (2 - typeb))), glm::vec3(0.0f, 1.0f, 0.0f),
 							glm::vec3((float)x + 1.0f, (float)y + 1.0f, (float)z + 1.0f), glm::vec2((1.0f / 3.0f) + ((float)type * (1.0f / 3.0f)), (1.0f / 3.0f) + ((1.0f / 3.0f) * (2 - typeb))), glm::vec3(0.0f, 1.0f, 0.0f),
 							glm::vec3((float)x + 1.0f, (float)y + 1.0f, (float)z), glm::vec2((1.0f / 3.0f) + ((float)type * (1.0f / 3.0f)), (0.0f / 3.0f) + ((1.0f / 3.0f) * (2 - typeb))), glm::vec3(0.0f, 1.0f, 0.0f) });
+						
 					}
 					if (y > 0) {
 						if (cubes[x + chunkSize * ((y - 1) + chunkSize * z)] == 0) {

@@ -186,7 +186,7 @@ void Game::update(GLboolean* Keys, double* mousePos, float deltaTime) {
 			for (int x = 0; x < maxChunks; x++) {
 				for (int z = 0; z < maxChunks; z++) {
 					//chunks.push_back(chunk(x * chunkSize, 0, z * chunkSize, (int)(camera->Position.x + camera->Position.z + camera->Position.y))); //321 //4124124 //136
-					chunks[maxChunks * x + z] = new chunk(x * chunkSize, 0, z * chunkSize, (int)(camera->Position.x + camera->Position.z + camera->Position.y));
+					chunks[32 * x + z] = new chunk(x * chunkSize, 0, z * chunkSize, (int)(camera->Position.x + camera->Position.z + camera->Position.y));
 				}
 			}
 			std::cout << (int)(camera->Position.x + camera->Position.z + camera->Position.y) << "\n";
@@ -261,15 +261,15 @@ void Game::update(GLboolean* Keys, double* mousePos, float deltaTime) {
 		//dynGen = false;
 		*/
 
-		int pChunkX = (int)(((camera->Position.x / chunkSize) * chunkSize) / chunkSize);
-		int pChunkZ = (int)(((camera->Position.z / chunkSize) * chunkSize) / chunkSize);
+		//int pChunkX = (int)(((camera->Position.x / chunkSize) * chunkSize) / chunkSize);
+		//int pChunkZ = (int)(((camera->Position.z / chunkSize) * chunkSize) / chunkSize);
 
 		//std::cout << pChunkX << " " << pChunkZ << "\n";
 
-		int spawnR = 15000;
-		int despawnR = 20000;
+		//int spawnR = 15000;
+		//int despawnR = 20000;
 		
-		cIt++;
+		/*cIt++;
 		if (cIt == chunks.end()) {
 			cIt = chunks.begin();
 		}
@@ -316,7 +316,56 @@ void Game::update(GLboolean* Keys, double* mousePos, float deltaTime) {
 				//chunks[6 * x + z].reGen(x * 32, 0, z * 32);
 			//}
 		//}
+		
+		int cX = camera->Position.x / 32;
+		int cZ = camera->Position.z / 32;
 
+		int loadDistance = 5;
+
+		bool chunkLoaded = false;
+
+		for (int i = 0; i < loadDistance; i++) {
+
+			int minX = std::max(cX - i, 0);
+			int minZ = std::max(cZ - i, 0);
+			int maxX = cX + i;
+			int maxZ = cZ + i;
+
+			for (int x = minX; x < maxX; ++x) {
+
+				for (int z = minZ; z < maxZ; ++z) {
+
+					/*if (chunks.count(32 * x + z) != 0 && !chunkLoaded) {
+						std::cout << "CREATED CHUNK\n";
+						chunks[maxChunks * x + z] = new chunk(x * chunkSize, 0, z * chunkSize, seed);
+						chunkLoaded = true;
+					}*/
+
+					if (chunks.find(32 * x + z) == chunks.end()) {
+						chunks[32 * x + z] = new chunk(x * chunkSize, 0, z * chunkSize, seed);
+						chunkLoaded = true;
+						//std::cout << "create\n";
+					}
+				}
+
+				if (chunkLoaded) {
+					break;
+				}
+			}
+		}
+
+		std::unordered_map<int, chunk*>::iterator it;
+
+		for (it = chunks.begin(); it != chunks.end(); ++it) {
+			glm::vec3 temp = it->second->getPosition();
+			if ((abs(temp.x - (int)camera->Position.x) > 200) || (abs(temp.z - (int)camera->Position.z) > 200)) {
+				it->second->cleanUp();
+				delete it->second;
+				it = chunks.erase(it);
+			}
+		}
+
+		//cManager->removeChunks((int)camera->Position.x, (int)camera->Position.z);
 	}
 }
 
